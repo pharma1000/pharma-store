@@ -1,4 +1,4 @@
-const API_URL = "PASTE_YOUR_NEW_DEPLOYMENT_URL_HERE"; 
+const API_URL = "https://script.google.com/macros/s/AKfycbyGfgQ7LMjM4UbFodjvBVrX-gpw4E8cp_SOHNf3nvFRWruZTU2yp3FdquxIO9LtQY1Xrg/exec"; 
 
 let allProducts = [];
 let designData = {};
