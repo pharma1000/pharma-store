@@ -18,8 +18,10 @@ function clean(s) { return s ? s.toString().toLowerCase().trim().normalize("NFD"
 function isMatch(s1, s2) { return clean(s1) === clean(s2); }
 
 function updateBadges() {
-    document.getElementById('cart-count').innerText = cart.reduce((a, b) => a + b.qty, 0);
-    document.getElementById('fav-count').innerText = favorites.length;
+    const c = document.getElementById('cart-count');
+    const f = document.getElementById('fav-count');
+    if(c) c.innerText = cart.reduce((a, b) => a + b.qty, 0);
+    if(f) f.innerText = favorites.length;
 }
 
 function showPage(page, param) {
@@ -49,19 +51,25 @@ function productCard(p) {
 }
 
 function renderHome() {
-    let h = designData.status === 'closed' ? '<div class="status-stripe">FERMÉ TEMPORAIREMENT</div>' : '';
-    h += `<div class="banner" style="background-image: url('${formatDriveUrl(designData.banner)}')"></div>`;
+    // 1. Red Status Stripe if closed
+    let h = designData.status === 'closed' ? '<div class="status-stripe">BOUTIQUE FERMÉE TEMPORAIREMENT</div>' : '';
+    
+    // BANNER IMAGE REMOVED AS REQUESTED
+    
+    // 2. Category Scroll
     h += `<div class="category-scroll">`;
     categories.forEach(cat => {
-        h += `<div class="cat-item" onclick="showPage('category', '${cat}')">
+        h += `<div class="cat-item" onclick="showPage('category', '${cat.replace(/'/g, "\\'")}')">
             <div class="cat-img"><img src="${formatDriveUrl(designData.categoryImages[cat.trim()])}" onerror="this.src='https://via.placeholder.com/80?text=PH'"></div>
             <span>${cat}</span></div>`;
     });
     h += `</div><div class="container">`;
+
+    // 3. Category Preview Sections
     categories.forEach(cat => {
         const prods = allProducts.filter(p => isMatch(p.category, cat)).slice(0, 4);
         if(prods.length > 0) {
-            h += `<div style="display:flex; justify-content:space-between; align-items:center; margin-top:20px;"><b>${cat}</b><span style="color:var(--primary); font-size:0.7rem; font-weight:bold; cursor:pointer" onclick="showPage('category', '${cat}')">VOIR TOUT</span></div>
+            h += `<div style="display:flex; justify-content:space-between; align-items:center; margin-top:20px;"><b>${cat}</b><span style="color:var(--primary); font-size:0.7rem; font-weight:bold; cursor:pointer" onclick="showPage('category', '${cat.replace(/'/g, "\\'")}')">VOIR TOUT</span></div>
                  <div class="product-grid" style="margin-top:10px">${prods.map(p => productCard(p)).join('')}</div>`;
         }
     });
@@ -71,13 +79,29 @@ function renderHome() {
 }
 
 // --- 3. ACTIONS ---
+function submitOrder(e) {
+    e.preventDefault();
+    const fd = new FormData(e.target); const data = Object.fromEntries(fd.entries());
+    const method = document.getElementById('method-select').value;
+    data.wilaya = document.getElementById('wilaya-select').value || "Magasin";
+    data.products = cart.map(i => `${i.name} (x${i.qty})`).join(', ');
+    data.orderTotal = document.getElementById('total-val').innerText;
+    data.shippingMethod = method;
+    
+    document.getElementById('success-page').innerHTML = `<div class="container" style="text-align:center; padding-top:50px;"><div class="success-card" style="background:var(--card); padding:30px; border-radius:20px; border:1px solid var(--border)"><i class="fas fa-check-circle" style="font-size:4rem; color:var(--primary)"></i><h1>Merci !</h1><p>Commande réussie.</p><button class="btn" onclick="location.reload()">RETOUR</button></div></div>`;
+    showPage('success');
+    
+    fetch(API_URL, { method: "POST", mode: 'no-cors', headers: { 'Content-Type': 'text/plain' }, body: JSON.stringify(data) });
+    cart=[]; localStorage.removeItem('pharmaCart'); updateBadges();
+}
+
 function addToCart(n) {
     const entry = cart.find(i => i.name === n);
     if(entry) entry.qty++; else cart.push({name: n, qty: 1});
     localStorage.setItem('pharmaCart', JSON.stringify(cart));
     updateBadges();
     const cbtn = document.getElementById('cart-btn-nav');
-    cbtn.classList.add('animate-bounce'); setTimeout(()=>cbtn.classList.remove('animate-bounce'), 400);
+    if(cbtn) { cbtn.classList.add('animate-bounce'); setTimeout(()=>cbtn.classList.remove('animate-bounce'), 400); }
 }
 
 function toggleFav(n, el) {
@@ -86,59 +110,6 @@ function toggleFav(n, el) {
     else { favorites.push(n); el.classList.add('active'); el.querySelector('i').className='fas fa-heart'; }
     localStorage.setItem('pharmaFavs', JSON.stringify(favorites));
     updateBadges();
-}
-
-function renderCheckout() {
-    let sub = cart.reduce((acc, i) => acc + ((allProducts.find(p=>p.name===i.name)||{price:0}).price*i.qty), 0);
-    const items = cart.map((item, idx) => {
-        const p = allProducts.find(x => x.name === item.name);
-        return `<div style="display:flex; justify-content:space-between; background:var(--card); padding:10px; margin-bottom:5px; border-radius:10px; border:1px solid var(--border)">
-                <div style="font-size:0.8rem"><b>${p.name}</b><br>${p.price.toFixed(2)} DA x ${item.qty}</div>
-                <i class="fas fa-trash" onclick="removeItem(${idx})" style="color:red; cursor:pointer"></i></div>`;
-    }).join('');
-    const wilayas = allLivraison.map(l => `<option value="${l.wilaya}">${l.wilaya}</option>`).join('');
-    document.getElementById('checkout-page').innerHTML = `<div class="container">
-      <div class="return-bar" onclick="showPage('home')">← RETOUR</div><h2>Panier</h2>${items || '<p>Vide</p>'}
-      <div style="background:var(--card); padding:15px; border-radius:15px; margin-top:15px; border:1px solid var(--border)">
-        <select id="wilaya-select" onchange="updateTotal()"><option value="">Wilaya...</option>${wilayas}</select>
-        <select id="method-select" onchange="updateTotal()"><option value="domicile">Domicile</option><option value="relais">Relais</option><option value="magasin">Magasin</option></select>
-        <div style="display:flex; justify-content:space-between; margin-top:10px;"><span>Total Produits</span><span>${sub.toFixed(2)} DA</span></div>
-        <div style="display:flex; justify-content:space-between;"><span>Livraison</span><span id="shipping-val">0.00 DA</span></div>
-        <div style="display:flex; justify-content:space-between; font-weight:bold; color:var(--primary); font-size:1.1rem; margin-top:10px;"><span>TOTAL</span><span id="total-val">${sub.toFixed(2)} DA</span></div>
-      </div>
-      <form onsubmit="submitOrder(event)" ${!cart.length || designData.status === 'closed' ?'style="display:none"':''} style="margin-top:20px">
-        <input type="text" name="name" placeholder="Nom Complet" required><input type="email" name="email" placeholder="Email" required><input type="tel" name="phone" placeholder="Téléphone" required><textarea name="address" id="addr-field" placeholder="Adresse" required rows="2"></textarea>
-        <button type="submit" class="btn" style="background:#ff4757">COMMANDER</button></form></div>`;
-}
-
-function updateTotal() {
-    const wil = document.getElementById('wilaya-select').value;
-    const met = document.getElementById('method-select').value;
-    const sub = cart.reduce((acc, i) => acc + ((allProducts.find(p=>p.name===i.name)||{price:0}).price*i.qty), 0);
-    let ship = 0;
-    const addr = document.getElementById('addr-field');
-    if(met === 'magasin') { addr.value = "RETRAIT MAGASIN"; }
-    else { if(addr.value === "RETRAIT MAGASIN") addr.value = "";
-      const data = allLivraison.find(l => l.wilaya === wil);
-      if(data) ship = (met === 'domicile') ? data.dPrice : data.rPrice;
-    }
-    document.getElementById('shipping-val').innerText = ship.toFixed(2) + " DA";
-    document.getElementById('total-val').innerText = (sub + ship).toFixed(2) + " DA";
-}
-
-function submitOrder(e) {
-    e.preventDefault();
-    const fd = new FormData(e.target); const data = Object.fromEntries(fd.entries());
-    data.wilaya = document.getElementById('wilaya-select').value || "Magasin";
-    data.products = cart.map(i => `${i.name} (x${i.qty})`).join(', ');
-    data.orderTotal = document.getElementById('total-val').innerText;
-    data.shippingMethod = document.getElementById('method-select').value;
-    
-    document.getElementById('success-page').innerHTML = `<div class="container" style="text-align:center; padding-top:50px;"><div class="success-card" style="background:var(--card); padding:30px; border-radius:20px; border:1px solid var(--border)"><i class="fas fa-check-circle" style="font-size:4rem; color:var(--primary)"></i><h1>Merci !</h1><p>Commande réussie.</p><button class="btn" onclick="location.reload()">RETOUR</button></div></div>`;
-    showPage('success');
-    
-    fetch(API_URL, { method: "POST", mode: 'no-cors', headers: { 'Content-Type': 'text/plain' }, body: JSON.stringify(data) });
-    cart=[]; localStorage.removeItem('pharmaCart'); updateBadges();
 }
 
 // --- 4. DATA LOADING ---
@@ -170,11 +141,46 @@ function hideLoader() {
     if(l) { l.style.opacity = '0'; setTimeout(()=>l.style.display='none', 400); }
 }
 
-// Additional helpers (Search, Detail, Remove)
+// --- REMAINING HELPERS (Checkout, Search, Detail, etc) ---
+function updateTotal() {
+    const wil = document.getElementById('wilaya-select').value;
+    const met = document.getElementById('method-select').value;
+    const sub = cart.reduce((acc, i) => acc + ((allProducts.find(p=>p.name===i.name)||{price:0}).price*i.qty), 0);
+    let ship = 0;
+    const addr = document.getElementById('addr-field');
+    if(met === 'magasin') { addr.value = "RETRAIT MAGASIN"; }
+    else { if(addr.value === "RETRAIT MAGASIN") addr.value = "";
+      const data = allLivraison.find(l => l.wilaya === wil);
+      if(data) ship = (met === 'domicile') ? data.dPrice : data.rPrice;
+    }
+    document.getElementById('shipping-val').innerText = ship.toFixed(2) + " DA";
+    document.getElementById('total-val').innerText = (sub + ship).toFixed(2) + " DA";
+}
+function renderCheckout() {
+    let sub = cart.reduce((acc, i) => acc + ((allProducts.find(p=>p.name===i.name)||{price:0}).price*i.qty), 0);
+    const items = cart.map((item, idx) => {
+        const p = allProducts.find(x => x.name === item.name);
+        return `<div style="display:flex; justify-content:space-between; background:var(--card); padding:10px; margin-bottom:5px; border-radius:10px; border:1px solid var(--border)">
+                <div style="font-size:0.8rem"><b>${p.name}</b><br>${p.price.toFixed(2)} DA x ${item.qty}</div>
+                <i class="fas fa-trash" onclick="removeItem(${idx})" style="color:red; cursor:pointer"></i></div>`;
+    }).join('');
+    const wilayas = allLivraison.map(l => `<option value="${l.wilaya}">${l.wilaya}</option>`).join('');
+    document.getElementById('checkout-page').innerHTML = `<div class="container"><div class="return-bar" onclick="showPage('home')">← RETOUR BOUTIQUE</div><h2>Panier</h2>${items || '<p>Vide</p>'}
+      <div style="background:var(--card); padding:15px; border-radius:15px; margin-top:15px; border:1px solid var(--border)">
+        <select id="wilaya-select" onchange="updateTotal()"><option value="">Wilaya...</option>${wilayas}</select>
+        <select id="method-select" onchange="updateTotal()"><option value="domicile">Domicile</option><option value="relais">Relais</option><option value="magasin">Magasin</option></select>
+        <div style="display:flex; justify-content:space-between; margin-top:10px;"><span>Total Produits</span><span>${sub.toFixed(2)} DA</span></div>
+        <div style="display:flex; justify-content:space-between;"><span>Livraison</span><span id="shipping-val">0.00 DA</span></div>
+        <div style="display:flex; justify-content:space-between; font-weight:bold; color:var(--primary); font-size:1.1rem; margin-top:10px;"><span>TOTAL</span><span id="total-val">${sub.toFixed(2)} DA</span></div>
+      </div>
+      <form onsubmit="submitOrder(event)" ${!cart.length || designData.status === 'closed' ?'style="display:none"':''} style="margin-top:20px">
+        <input type="text" name="name" placeholder="Nom Complet" required><input type="email" name="email" placeholder="Email" required><input type="tel" name="phone" placeholder="Téléphone" required><textarea name="address" id="addr-field" placeholder="Adresse" required rows="2"></textarea>
+        <button type="submit" class="btn" style="background:#ff4757">COMMANDER</button></form></div>`;
+}
 function removeItem(idx) { cart.splice(idx,1); localStorage.setItem('pharmaCart', JSON.stringify(cart)); updateBadges(); renderCheckout(); }
 function toggleTheme() { const b = document.body; const next = b.getAttribute('data-theme')==='dark'?'light':'dark'; b.setAttribute('data-theme', next); localStorage.setItem('theme', next); document.querySelector('.theme-toggle').className = next==='dark'?'fas fa-sun theme-toggle':'fas fa-moon theme-toggle'; }
 function renderCategory(cat) { const filtered = allProducts.filter(p => isMatch(p.category, cat)); document.getElementById('category-page').innerHTML = `<div class="container"><div class="return-bar" onclick="showPage('home')">← RETOUR</div><b>${cat}</b><div class="product-grid" style="margin-top:15px">${filtered.map(p => productCard(p)).join('')}</div></div>`; }
-function renderProductDetail(name) { const p = allProducts.find(x => x.name === name); if(!p) return showPage('home'); const related = allProducts.filter(x => isMatch(x.category, p.category) && x.name !== p.name).slice(0, 4); document.getElementById('product-page').innerHTML = `<div class="container"><div class="return-bar" onclick="showPage('home')">← RETOUR</div><div style="background:var(--card); padding:20px; border-radius:20px; text-align:center; border:1px solid var(--border); margin-top:15px;"><img src="${formatDriveUrl(p.image)}" style="height:220px; object-fit:contain; background:#fff; border-radius:10px;"><h1>${p.name}</h1><h2 style="color:var(--primary)">${p.price.toFixed(2)} DA</h2><p style="text-align:left; color:var(--text-light); font-size:0.9rem">${p.description}</p><button class="btn" onclick="addToCart('${p.name.replace(/'/g, "\\'")}')">AJOUTER AU PANIER</button></div><div style="margin-top:20px"><b>Similaires</b></div><div class="product-grid" style="margin-top:10px">${related.map(r => productCard(r)).join('')}</div></div>`; }
+function renderProductDetail(name) { const p = allProducts.find(x => x.name === name); if(!p) return showPage('home'); const related = allProducts.filter(x => isMatch(x.category, p.category) && x.name !== p.name).slice(0, 4); document.getElementById('product-page').innerHTML = `<div class="container"><div class="return-bar" onclick="showPage('home')">← RETOUR</div><div style="background:var(--card); padding:20px; border-radius:20px; text-align:center; border:1px solid var(--border); margin-top:10px;"><img src="${formatDriveUrl(p.image)}" style="height:220px; object-fit:contain; background:#fff; border-radius:10px;"><h1>${p.name}</h1><h2 style="color:var(--primary)">${p.price.toFixed(2)} DA</h2><p style="text-align:left; color:var(--text-light); font-size:0.9rem">${p.description}</p><button class="btn" onclick="addToCart('${p.name.replace(/'/g, "\\'")}')">AJOUTER AU PANIER</button></div><div style="margin-top:20px"><b>Produits Similaires</b></div><div class="product-grid" style="margin-top:10px">${related.map(r => productCard(r)).join('')}</div></div>`; }
 function renderFavorites() { const favs = allProducts.filter(p => favorites.includes(p.name)); document.getElementById('favorites-page').innerHTML = `<div class="container"><div class="return-bar" onclick="showPage('home')">← RETOUR</div><b>Mes Favoris</b><div class="product-grid" style="margin-top:15px">${favs.length ? favs.map(p => productCard(p)).join('') : '<p>Vide</p>'}</div></div>`; }
-function renderSearch() { document.getElementById('search-page').innerHTML = `<div class="container"><div class="return-bar" onclick="showPage('home')">← RETOUR</div><input type="text" id="search-input" placeholder="Produit..." oninput="performSearch(this.value)"><div id="search-results" class="product-grid" style="margin-top:20px"></div></div>`; setTimeout(()=>document.getElementById('search-input').focus(), 100); }
-function performSearch(q) { if(q.length<2) return; const filtered = allProducts.filter(p => clean(p.name).includes(clean(q))); document.getElementById('search-results').innerHTML = filtered.map(p => productCard(p)).join(''); }
+function renderSearch() { document.getElementById('search-page').innerHTML = `<div class="container"><div class="return-bar" onclick="showPage('home')">← RETOUR</div><input type="text" id="search-input" placeholder="Rechercher..." oninput="performSearch(this.value)"><div id="search-results" class="product-grid" style="margin-top:20px"></div></div>`; setTimeout(()=>document.getElementById('search-input').focus(), 100); }
+function performSearch(q) { if (q.length < 2) { document.getElementById('search-results').innerHTML = ''; return; } const filtered = allProducts.filter(p => clean(p.name).includes(clean(q))); document.getElementById('search-results').innerHTML = filtered.map(p => productCard(p)).join(''); }
