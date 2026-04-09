@@ -15,22 +15,30 @@
         </div>
     </div>
 
-    <nav class="navbar">
-        <div class="logo-container" onclick="showPage('home')">
-            <img id="site-logo" src="https://lh3.googleusercontent.com/d/1Fsjnz7niting6IxQmdvx5uAw1COBqJDb" alt="Logo">
-            <span id="site-title">Pharma 1000</span>
+<nav class="navbar">
+    <div class="logo-container" onclick="showPage('home')">
+        <img id="site-logo" src="https://lh3.googleusercontent.com/d/1Fsjnz7niting6IxQmdvx5uAw1COBqJDb" alt="Logo">
+        <span id="site-title">Pharma 1000</span>
+    </div>
+    <div class="nav-icons-group">
+        <!-- FIXED TOGGLE BUTTON -->
+        <div class="theme-toggle" onclick="toggleTheme()">
+            <i class="fas fa-moon"></i>
         </div>
-        <div class="nav-icons-group">
-            <div class="icon-btn theme-toggle" onclick="toggleTheme()"><i class="fas fa-moon"></i></div>
-            <div class="icon-btn" onclick="showPage('search')"><i class="fas fa-search"></i></div>
-            <div id="fav-btn-nav" class="icon-btn" onclick="showPage('favorites')">
-                <i class="fas fa-heart"></i><span id="fav-count" class="badge">0</span>
-            </div>
-            <div id="cart-btn-nav" class="icon-btn" onclick="showPage('checkout')">
-                <i class="fas fa-shopping-cart"></i><span id="cart-count" class="badge">0</span>
-            </div>
+        
+        <div class="icon-btn" onclick="showPage('search')"><i class="fas fa-search"></i></div>
+        
+        <div id="fav-btn-nav" class="icon-btn" onclick="showPage('favorites')">
+            <i class="fas fa-heart"></i>
+            <span id="fav-count" class="badge">0</span>
         </div>
-    </nav>
+        
+        <div id="cart-btn-nav" class="icon-btn" onclick="showPage('checkout')">
+            <i class="fas fa-shopping-cart"></i>
+            <span id="cart-count" class="badge">0</span>
+        </div>
+    </div>
+</nav>
 
     <div id="app">
         <div id="home-page" class="page"></div>
