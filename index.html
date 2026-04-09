@@ -5,36 +5,33 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Pharma 1000</title>
     <link rel="stylesheet" href="style.css">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
 </head>
 <body>
-    <div id="loader-shell" style="position:fixed; inset:0; background:#fff; z-index:10000; display:flex; align-items:center; justify-content:center;">
-        <div style="text-align:center;">
-            <div style="width:40px; height:40px; border:4px solid #f3f3f3; border-top:4px solid #00a86b; border-radius:50%; animation:spin 1s linear infinite;"></div>
-            <h2 style="color:#00a86b; margin-top:15px;">PHARMA 1000</h2>
+    <div id="loader-shell">
+        <div class="loader-content">
+            <div class="spin"></div>
+            <h2>PHARMA 1000</h2>
         </div>
     </div>
 
-<nav class="navbar">
-    <div class="logo-container" onclick="showPage('home')">
-        <img id="site-logo" src="https://lh3.googleusercontent.com/d/1Fsjnz7niting6IxQmdvx5uAw1COBqJDb" alt="Pharma 1000">
-        <span id="site-title">Pharma 1000</span>
-    </div>
-    <div class="nav-icons-group">
-        <i class="fas fa-moon theme-toggle" onclick="toggleTheme()"></i>
-        <div class="icon-btn" onclick="showPage('search')">
-            <i class="fas fa-search"></i>
+    <nav class="navbar">
+        <div class="logo-container" onclick="showPage('home')">
+            <img id="site-logo" src="https://lh3.googleusercontent.com/d/1Fsjnz7niting6IxQmdvx5uAw1COBqJDb" alt="Logo">
+            <span id="site-title">Pharma 1000</span>
         </div>
-        <div id="fav-btn-nav" class="icon-btn" onclick="showPage('favorites')">
-            <i class="fas fa-heart"></i>
-            <span id="fav-count" class="badge">0</span>
+        <div class="nav-icons-group">
+            <div class="icon-btn theme-toggle" onclick="toggleTheme()"><i class="fas fa-moon"></i></div>
+            <div class="icon-btn" onclick="showPage('search')"><i class="fas fa-search"></i></div>
+            <div id="fav-btn-nav" class="icon-btn" onclick="showPage('favorites')">
+                <i class="fas fa-heart"></i><span id="fav-count" class="badge">0</span>
+            </div>
+            <div id="cart-btn-nav" class="icon-btn" onclick="showPage('checkout')">
+                <i class="fas fa-shopping-cart"></i><span id="cart-count" class="badge">0</span>
+            </div>
         </div>
-        <div id="cart-btn-nav" class="icon-btn" onclick="showPage('checkout')">
-            <i class="fas fa-shopping-cart"></i>
-            <span id="cart-count" class="badge">0</span>
-        </div>
-    </div>
-</nav>
+    </nav>
+
     <div id="app">
         <div id="home-page" class="page"></div>
         <div id="category-page" class="page" style="display:none"></div>
@@ -46,6 +43,5 @@
     </div>
 
     <script src="script.js"></script>
-    <style>@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }</style>
 </body>
 </html>
