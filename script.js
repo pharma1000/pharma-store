@@ -205,10 +205,8 @@ function initApp(data, skipHomeNavigation = false) {
     document.body.setAttribute('data-theme', savedTheme);
     const icon = document.querySelector('.theme-toggle i'); if(icon) icon.className = savedTheme === 'dark' ? 'fas fa-sun' : 'fas fa-moon';
     updateBadges(); 
-    // Only show home if we're not handling a deep link
-    if (!skipHomeNavigation) {
-        showPage('home');
-    }
+    // Always initialize home page to setup DOM structure
+    showPage('home');
 }
 // ============================================
 // CLEAN URL - BROWSER HISTORY NAVIGATION
@@ -230,26 +228,57 @@ window.onload = function() {
     const initialSlug = urlSlug || (hasCleanUrl ? pathSlug : null);
     const hasDeepLink = !!initialSlug;
     
-    const cached = localStorage.getItem('pharma_cache');
-    if (cached) { try { initApp(JSON.parse(cached), hasDeepLink); hideLoader(); } catch(e){} }
-    fetch(API_URL, { redirect: 'follow' }).then(res => res.json()).then(data => {
-        localStorage.setItem('pharma_cache', JSON.stringify(data));
-        initApp(data, hasDeepLink); hideLoader();
-        
-        // DEEP LINKING: Check URL on load and show product if slug present
+    // Helper function to handle deep link after data is loaded
+    function handleDeepLink(skipDefault = false) {
         if (initialSlug) {
             const product = findProductBySlug(initialSlug, allProducts);
             if (product) {
-                renderProductDetail(product.name);
+                showPage('product', product.name);
                 // Clean up URL - use replaceState if came from 404, otherwise keep current URL
                 if (urlSlug) {
                     window.history.replaceState({}, '', '/' + initialSlug);
                 }
+                return true;
             } else {
-                showPage('home');
+                if (!skipDefault) {
+                    showPage('home');
+                }
+                return false;
             }
         } else {
-            handleUrlNavigation();
+            if (!skipDefault) {
+                handleUrlNavigation();
+            }
+            return false;
+        }
+    }
+    
+    const cached = localStorage.getItem('pharma_cache');
+    let deepLinkHandled = false;
+    
+    if (cached) { 
+        try { 
+            initApp(JSON.parse(cached), hasDeepLink); 
+            hideLoader();
+            // Handle deep link immediately with cached data
+            deepLinkHandled = handleDeepLink(true);
+        } catch(e){} 
+    }
+    
+    fetch(API_URL, { redirect: 'follow' }).then(res => res.json()).then(data => {
+        localStorage.setItem('pharma_cache', JSON.stringify(data));
+        initApp(data, hasDeepLink); 
+        hideLoader();
+        
+        // Only handle deep link if we haven't already handled it with cache
+        if (!deepLinkHandled) {
+            handleDeepLink();
+        } else {
+            // If we already handled it, just ensure we're showing the right page
+            // but don't navigate away from where we are
+            if (!initialSlug) {
+                handleUrlNavigation();
+            }
         }
     }).catch(err => { if(!cached) document.getElementById('loader-shell').innerHTML = "Erreur de connexion."; });
 };
