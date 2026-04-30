@@ -199,16 +199,12 @@ function showPage(page, param = null) {
 }
 
 // 4. CORE APP LOGIC
-function initApp(data, skipHomeNavigation = false) {
+function initApp(data) {
     allProducts = data.products || []; designData = data.design || designData; allLivraison = data.livraisons || [];
     const savedTheme = localStorage.getItem('theme') || 'light';
     document.body.setAttribute('data-theme', savedTheme);
     const icon = document.querySelector('.theme-toggle i'); if(icon) icon.className = savedTheme === 'dark' ? 'fas fa-sun' : 'fas fa-moon';
-    updateBadges(); 
-    // Only show home if we're not handling a deep link
-    if (!skipHomeNavigation) {
-        showPage('home');
-    }
+    updateBadges(); showPage('home');
 }
 // ============================================
 // CLEAN URL - BROWSER HISTORY NAVIGATION
@@ -220,31 +216,22 @@ window.addEventListener('popstate', (event) => {
 });
 
 window.onload = function() {
-    // Check for deep link BEFORE loading data
-    const urlParams = new URLSearchParams(window.location.search);
-    const urlSlug = urlParams.get('url');
-    const pathSlug = window.location.pathname.replace(/^\//, '').replace(/\/$/, '');
-    const hasCleanUrl = pathSlug && pathSlug !== 'index.html' && !pathSlug.includes('.');
-    
-    // Determine which slug to use and if we should skip home navigation
-    const initialSlug = urlSlug || (hasCleanUrl ? pathSlug : null);
-    const hasDeepLink = !!initialSlug;
-    
     const cached = localStorage.getItem('pharma_cache');
-    if (cached) { try { initApp(JSON.parse(cached), hasDeepLink); hideLoader(); } catch(e){} }
+    if (cached) { try { initApp(JSON.parse(cached)); hideLoader(); } catch(e){} }
     fetch(API_URL, { redirect: 'follow' }).then(res => res.json()).then(data => {
         localStorage.setItem('pharma_cache', JSON.stringify(data));
-        initApp(data, hasDeepLink); hideLoader();
+        initApp(data); hideLoader();
         
         // DEEP LINKING: Check URL on load and show product if slug present
-        if (initialSlug) {
-            const product = findProductBySlug(initialSlug, allProducts);
+        // Handle both clean URL paths and query params from 404 redirect
+        const urlParams = new URLSearchParams(window.location.search);
+        const urlSlug = urlParams.get('url');
+        if (urlSlug) {
+            const product = findProductBySlug(urlSlug, allProducts);
             if (product) {
                 renderProductDetail(product.name);
-                // Clean up URL - use replaceState if came from 404, otherwise keep current URL
-                if (urlSlug) {
-                    window.history.replaceState({}, '', '/' + initialSlug);
-                }
+                // Clean up URL by replacing history state
+                window.history.replaceState({}, '', '/' + urlSlug);
             } else {
                 showPage('home');
             }
