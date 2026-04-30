@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Page Not Found | Pharma-1000</title>
+    <script>
+        // SPA Routing Redirect
+        // GitHub Pages 404.html - Redirect all routes to index.html for Clean URL support
+        
+        // Get the current path
+        const currentPath = window.location.pathname;
+        
+        // Get the hash or search params if any
+        const hash = window.location.hash;
+        const search = window.location.search;
+        
+        // Build the redirect URL - preserve the path as a hash parameter for SPA routing
+        let redirectUrl = '/index.html';
+        
+        // If we're not already on index.html or root, preserve the path
+        if (currentPath !== '/' && currentPath !== '/index.html') {
+            // Pass the original path to index.html via hash or query
+            redirectUrl = '/index.html?redirect=' + encodeURIComponent(currentPath);
+        }
+        
+        // Additional preservation of hash and search
+        if (hash) {
+            redirectUrl += hash;
+        } else if (search) {
+            // If there was a search param, include it in the hash
+            redirectUrl += '?' + search.substring(1);
+        }
+        
+        // Perform the redirect
+        window.location.replace(redirectUrl);
+    </script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+        .container {
+            text-align: center;
+            padding: 2rem;
+        }
+        h1 { font-size: 4rem; margin-bottom: 1rem; }
+        p { font-size: 1.25rem; margin-bottom: 2rem; }
+        a {
+            background: white;
+            color: #667eea;
+            padding: 1rem 2rem;
+            text-decoration: none;
+            border-radius: 4px;
+            font-weight: bold;
+            transition: transform 0.2s;
+        }
+        a:hover { transform: scale(1.05); }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>404</h1>
+        <p>Page introuvable. Redirection...</p>
+        <a href="/index.html">Retour à l'accueil</a>
+    </div>
+</body>
+</html>
