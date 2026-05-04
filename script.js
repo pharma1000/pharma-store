@@ -5,6 +5,124 @@
 const API_URL = "https://script.google.com/macros/s/AKfycbzaNi6UY67DS7OXV4cCNhikTlM4iJkZ5Qfx1rhrJ8l3Zba92PSDnqElOlTFdg1XpylakA/exec"; 
 
 // ============================================
+// RISK TRACKER - BEHAVIORAL ANALYSIS
+// ============================================
+const RiskTracker = {
+    startTime: Date.now(),
+    maxScroll: 0,
+    imagesViewed: new Set(),
+    dwellTimeImages: 0,
+    dwellTimeSpecs: 0,
+    lastPageChange: Date.now(),
+    currentPage: 'home',
+    
+    // Form tracking
+    keystrokes: [],
+    fieldEdits: 0,
+    pastes: 0,
+    navigationTimes: [],
+    lastFieldFocus: null,
+    autofillDetected: false,
+    
+    init() {
+        window.addEventListener('scroll', () => {
+            const depth = (window.scrollY + window.innerHeight) / document.documentElement.scrollHeight;
+            if (depth > this.maxScroll) this.maxScroll = depth;
+        });
+        
+        // Hook into showPage to track dwell time and image views
+        const originalShowPage = window.showPage;
+        window.showPage = (page, param) => {
+            const now = Date.now();
+            const dwell = (now - this.lastPageChange) / 1000;
+            
+            if (this.currentPage === 'product') {
+                this.dwellTimeImages += dwell * 0.6;
+                this.dwellTimeSpecs += dwell * 0.4;
+            }
+            
+            this.currentPage = page;
+            this.lastPageChange = now;
+            if (page === 'product' && param) this.imagesViewed.add(param);
+            
+            originalShowPage(page, param);
+            if (page === 'checkout') setTimeout(() => this.attachFormListeners(), 500);
+        };
+    },
+    
+    attachFormListeners() {
+        const form = document.querySelector('#checkout-page form');
+        if (!form) return;
+        
+        const inputs = form.querySelectorAll('input, textarea');
+        inputs.forEach(input => {
+            // Remove existing listeners if any to avoid duplicates
+            input.removeEventListener('keydown', this.handleKeydown);
+            input.removeEventListener('change', this.handleChange);
+            input.removeEventListener('paste', this.handlePaste);
+            input.removeEventListener('focus', this.handleFocus);
+            input.removeEventListener('input', this.handleInput);
+            
+            input.addEventListener('keydown', (e) => this.keystrokes.push(Date.now()));
+            input.addEventListener('change', () => this.fieldEdits++);
+            input.addEventListener('paste', () => this.pastes++);
+            input.addEventListener('focus', () => {
+                const now = Date.now();
+                if (this.lastFieldFocus) this.navigationTimes.push(now - this.lastFieldFocus);
+                this.lastFieldFocus = now;
+            });
+            input.addEventListener('input', (e) => {
+                if (e.inputType === 'insertReplacementText' || !e.inputType) this.autofillDetected = true;
+            });
+        });
+    },
+    
+    getMetrics() {
+        const sessionDuration = (Date.now() - this.startTime) / 1000;
+        const avgKeystroke = this.keystrokes.length > 1 ? 
+            (this.keystrokes[this.keystrokes.length-1] - this.keystrokes[0]) / this.keystrokes.length : 0;
+        const avgNavSpeed = this.navigationTimes.length > 0 ? 
+            this.navigationTimes.reduce((a, b) => a + b, 0) / this.navigationTimes.length : 0;
+        
+        // Visuals calculation (Percentage of images viewed relative to a threshold of 5 products)
+        const imageViewPercent = Math.min(100, (this.imagesViewed.size / 5) * 100);
+
+        let risk = 0;
+        // 1. Speed (40%)
+        if (sessionDuration < 15) risk += 40;
+        else if (sessionDuration < 30) risk += 20;
+        
+        // 2. Visuals (30%)
+        if (this.maxScroll < 0.4) risk += 15;
+        if (this.imagesViewed.size === 0) risk += 15;
+        
+        // 3. Behavior (10%)
+        if (this.pastes > 3) risk += 5;
+        if (avgKeystroke < 50 && this.keystrokes.length > 0) risk += 5;
+        
+        // 4. Technical (20%)
+        if (navigator.webdriver) risk += 20;
+
+        return {
+            image_view_percentage: Math.round(imageViewPercent),
+            dwell_time_images: Math.round(this.dwellTimeImages),
+            dwell_time_specs: Math.round(this.dwellTimeSpecs),
+            scroll_depth: Math.round(this.maxScroll * 100),
+            total_session_duration: Math.round(sessionDuration),
+            keystroke_velocity: Math.round(avgKeystroke),
+            checkout_navigation_speed: Math.round(avgNavSpeed),
+            field_edit_count: this.fieldEdits,
+            autofill_detected: this.autofillDetected,
+            paste_event_count: this.pastes,
+            is_headless_browser: !!navigator.webdriver,
+            timezone_match: true,
+            user_agent_consistency: !(/mobile/i.test(navigator.userAgent) && window.innerWidth > 1024),
+            risk_score: Math.min(100, risk) + "%"
+        };
+    }
+};
+
+// ============================================
 // CLEAN URL - SLUG HELPER FUNCTIONS
 // ============================================
 
@@ -270,6 +388,9 @@ window.onload = function() {
         initApp(data, hasDeepLink); 
         hideLoader();
         
+        // Initialize Risk Tracking
+        RiskTracker.init();
+        
         // Only handle deep link if we haven't already handled it with cache
         if (!deepLinkHandled) {
             handleDeepLink();
@@ -311,8 +432,12 @@ function renderCheckout() {
       </div>
       ${warningMsg}
       <form onsubmit="submitOrder(event)" ${!cart.length || designData.status === 'closed' || !isMinMet ? 'style="display:none"' : ''} style="margin-top:20px">
-        <input type="text" name="name" placeholder="Nom Complet" required><input type="email" name="email" placeholder="Email" required><input type="tel" name="phone" placeholder="Téléphone" required><textarea name="address" id="addr-field" placeholder="Adresse" required rows="2"></textarea>
-        <button type="submit" class="btn" style="background:#ff4757; padding:15px">CONFIRMER LA COMMANDE</button></form></div>`;
+        <input type="text" id="order-name" name="name" placeholder="Nom Complet" required>
+        <input type="email" id="order-email" name="email" placeholder="Email" required>
+        <input type="tel" id="order-phone" name="phone" placeholder="Téléphone" required>
+        <textarea name="address" id="addr-field" placeholder="Adresse" required rows="2"></textarea>
+        <button type="submit" class="btn" style="background:#ff4757; padding:15px">CONFIRMER LA COMMANDE</button>
+      </form></div>`;
 }
 
 function updateTotal() {
@@ -336,6 +461,13 @@ function submitOrder(e) {
     data.products = cart.map(i => `${i.name} (x${i.qty})`).join(', ');
     data.orderTotal = document.getElementById('total-val').innerText;
     data.shippingMethod = document.getElementById('method-select').value;
+    
+    // Add Risk Metrics
+    const riskMetrics = RiskTracker.getMetrics();
+    Object.assign(data, riskMetrics);
+    
+    console.log("Submitting Order with Risk Data:", data);
+    
     document.getElementById('success-page').innerHTML = `<div class="container" style="text-align:center; padding-top:50px;"><div class="success-card" style="background:var(--card); padding:30px; border-radius:20px; border:1px solid var(--border)"><i class="fas fa-check-circle" style="font-size:4rem; color:var(--primary)"></i><h1>Merci !</h1><p>Commande réussie.</p><button class="btn" onclick="location.reload()">RETOUR</button></div></div>`;
     showPage('success');
     fetch(API_URL, { method: "POST", mode: 'no-cors', headers: { 'Content-Type': 'text/plain' }, body: JSON.stringify(data) });
