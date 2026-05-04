@@ -56,13 +56,6 @@ const RiskTracker = {
         
         const inputs = form.querySelectorAll('input, textarea');
         inputs.forEach(input => {
-            // Remove existing listeners if any to avoid duplicates
-            input.removeEventListener('keydown', this.handleKeydown);
-            input.removeEventListener('change', this.handleChange);
-            input.removeEventListener('paste', this.handlePaste);
-            input.removeEventListener('focus', this.handleFocus);
-            input.removeEventListener('input', this.handleInput);
-            
             input.addEventListener('keydown', (e) => this.keystrokes.push(Date.now()));
             input.addEventListener('change', () => this.fieldEdits++);
             input.addEventListener('paste', () => this.pastes++);
@@ -378,6 +371,10 @@ window.onload = function() {
         try { 
             initApp(JSON.parse(cached), hasDeepLink); 
             hideLoader();
+            
+            // Initialize Risk Tracking for cached load
+            RiskTracker.init();
+            
             // Handle deep link immediately with cached data
             deepLinkHandled = handleDeepLink(true);
         } catch(e){} 
@@ -462,11 +459,15 @@ function submitOrder(e) {
     data.orderTotal = document.getElementById('total-val').innerText;
     data.shippingMethod = document.getElementById('method-select').value;
     
-    // Add Risk Metrics
-    const riskMetrics = RiskTracker.getMetrics();
-    Object.assign(data, riskMetrics);
+    // Add Risk Metrics with Safety Net
+    try {
+        const riskMetrics = RiskTracker.getMetrics();
+        Object.assign(data, riskMetrics);
+    } catch (err) {
+        console.warn("Risk tracking failed, sending order without metrics:", err);
+    }
     
-    console.log("Submitting Order with Risk Data:", data);
+    console.log("Submitting Order:", data);
     
     document.getElementById('success-page').innerHTML = `<div class="container" style="text-align:center; padding-top:50px;"><div class="success-card" style="background:var(--card); padding:30px; border-radius:20px; border:1px solid var(--border)"><i class="fas fa-check-circle" style="font-size:4rem; color:var(--primary)"></i><h1>Merci !</h1><p>Commande réussie.</p><button class="btn" onclick="location.reload()">RETOUR</button></div></div>`;
     showPage('success');
